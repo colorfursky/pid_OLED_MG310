@@ -570,11 +570,6 @@
           <GroupName>Hardware</GroupName>
           <Files>
             <File>
-              <FileName>Key.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\Hardware\Key.c</FilePath>
-            </File>
-            <File>
               <FileName>Software_I2C.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\Hardware\Software_I2C.c</FilePath>

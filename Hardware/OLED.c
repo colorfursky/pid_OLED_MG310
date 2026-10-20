@@ -137,17 +137,17 @@ void OLED_ShowChineseChars(uint8_t X, uint8_t Page, char *Chinese_String){
 	}
 }
 
-void OLED_LOGO(void){
-	OLED_ShowImage(16 + 24 * 0, 2, 24, 3, Img[0]);
-	OLED_ShowImage(16 + 24 * 1, 2, 24, 3, Img[1]);
-	OLED_ShowImage(16 + 24 * 2, 2, 24, 3, Img[2]);
-	OLED_ShowImage(16 + 24 * 3, 2, 24, 3, Img[3]);
-	
-	OLED_ShowImage(16 + 24 * 0, 5, 24, 3, Img[4]);
-	OLED_ShowImage(16 + 24 * 1, 5, 24, 3, Img[5]);
-	OLED_ShowImage(16 + 24 * 2, 5, 24, 3, Img[6]);
-	OLED_ShowImage(16 + 24 * 3, 5, 24, 3, Img[7]);
-}
+//void OLED_LOGO(void){
+//	OLED_ShowImage(16 + 24 * 0, 2, 24, 3, Img[0]);
+//	OLED_ShowImage(16 + 24 * 1, 2, 24, 3, Img[1]);
+//	OLED_ShowImage(16 + 24 * 2, 2, 24, 3, Img[2]);
+//	OLED_ShowImage(16 + 24 * 3, 2, 24, 3, Img[3]);
+//	
+//	OLED_ShowImage(16 + 24 * 0, 5, 24, 3, Img[4]);
+//	OLED_ShowImage(16 + 24 * 1, 5, 24, 3, Img[5]);
+//	OLED_ShowImage(16 + 24 * 2, 5, 24, 3, Img[6]);
+//	OLED_ShowImage(16 + 24 * 3, 5, 24, 3, Img[7]);
+//}
 
 void OLED_Ciallo(void){
 	uint8_t i = 0;

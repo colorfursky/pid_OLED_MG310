@@ -29,23 +29,18 @@
 #include "OLED.h"
 #include "MG310_Driver.h"
 
+#include "semphr.h"
+
 #include <stdio.h>
 #include <math.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 typedef StaticTask_t osStaticThreadDef_t;
+typedef StaticQueue_t osStaticMessageQDef_t;
+typedef StaticSemaphore_t osStaticSemaphoreDef_t;
 /* USER CODE BEGIN PTD */
-typedef enum{
-	DISP_NONE = 0,
-	DISP_KEY1,
-	DISP_KEY2,
-} DispCmd_t;
 
-typedef struct{
-	DispCmd_t Cmd;
-	uint32_t param;
-}DispMsg_t;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -60,17 +55,7 @@ typedef struct{
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
-typedef struct {
-  GPIO_TypeDef *port;
-  uint16_t pin;
-  osTimerId timerHandle;
-  volatile uint8_t pressed;   // �����¼���־
-  uint8_t lastState;          // �ϴβ�����ƽ
-  uint8_t stableCnt;          // ����һ�¼���
-} KeyObject_t;
 
-KeyObject_t KEY1 = { KEY1_GPIO_Port, KEY1_Pin, NULL, 0, 1, 0 };
-KeyObject_t KEY2 = { KEY2_GPIO_Port, KEY2_Pin, NULL, 0, 1, 0 };
 /* USER CODE END Variables */
 /* Definitions for PWM_Task */
 osThreadId_t PWM_TaskHandle;
@@ -108,20 +93,34 @@ const osThreadAttr_t OLED_Task_attributes = {
   .stack_size = sizeof(OLED_TaskBuffer),
   .priority = (osPriority_t) osPriorityLow,
 };
-/* Definitions for KEY1Timer */
-osTimerId_t KEY1TimerHandle;
-const osTimerAttr_t KEY1Timer_attributes = {
-  .name = "KEY1Timer"
+/* Definitions for KEY_MsgQueue */
+osMessageQueueId_t KEY_MsgQueueHandle;
+uint8_t KEY_MsgQueueBuffer[ 8 * sizeof( uint8_t ) ];
+osStaticMessageQDef_t KEY_MsgQueueControlBlock;
+const osMessageQueueAttr_t KEY_MsgQueue_attributes = {
+  .name = "KEY_MsgQueue",
+  .cb_mem = &KEY_MsgQueueControlBlock,
+  .cb_size = sizeof(KEY_MsgQueueControlBlock),
+  .mq_mem = &KEY_MsgQueueBuffer,
+  .mq_size = sizeof(KEY_MsgQueueBuffer)
 };
-/* Definitions for KEY2Timer */
-osTimerId_t KEY2TimerHandle;
-const osTimerAttr_t KEY2Timer_attributes = {
-  .name = "KEY2Timer"
+/* Definitions for KEY1_Semaphore */
+osSemaphoreId_t KEY1_SemaphoreHandle;
+osStaticSemaphoreDef_t KEY1_SemaphoreControlBlock;
+const osSemaphoreAttr_t KEY1_Semaphore_attributes = {
+  .name = "KEY1_Semaphore",
+  .cb_mem = &KEY1_SemaphoreControlBlock,
+  .cb_size = sizeof(KEY1_SemaphoreControlBlock),
+};
+/* Definitions for KEY2_Semaphore */
+osSemaphoreId_t KEY2_SemaphoreHandle;
+osStaticSemaphoreDef_t KEY2_SemaphoreControlBlock;
+const osSemaphoreAttr_t KEY2_Semaphore_attributes = {
+  .name = "KEY2_Semaphore",
+  .cb_mem = &KEY2_SemaphoreControlBlock,
+  .cb_size = sizeof(KEY2_SemaphoreControlBlock),
 };
 
-extern const uint8_t Img[][72];
-
-osMessageQueueId_t dispQueue;
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
 
@@ -130,8 +129,6 @@ osMessageQueueId_t dispQueue;
 void PWM_Task_function(void *argument);
 void KEY_Task_Function(void *argument);
 void OLED_Task_Function(void *argument);
-void KEY1Callback(void *argument);
-void KEY2Callback(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -142,35 +139,31 @@ void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
   */
 void MX_FREERTOS_Init(void) {
   /* USER CODE BEGIN Init */
-	dispQueue = osMessageQueueNew(5, sizeof(DispMsg_t), NULL);
-	if(dispQueue == NULL){
-		Error_Handler();
-	}
+
   /* USER CODE END Init */
 
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
   /* USER CODE END RTOS_MUTEX */
 
+  /* Create the semaphores(s) */
+  /* creation of KEY1_Semaphore */
+  KEY1_SemaphoreHandle = osSemaphoreNew(1, 1, &KEY1_Semaphore_attributes);
+
+  /* creation of KEY2_Semaphore */
+  KEY2_SemaphoreHandle = osSemaphoreNew(1, 1, &KEY2_Semaphore_attributes);
+
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
   /* USER CODE END RTOS_SEMAPHORES */
 
-  /* Create the timer(s) */
-  /* creation of KEY1Timer */
-  KEY1TimerHandle = osTimerNew(KEY1Callback, osTimerPeriodic, NULL, &KEY1Timer_attributes);
-
-  /* creation of KEY2Timer */
-  KEY2TimerHandle = osTimerNew(KEY2Callback, osTimerPeriodic, NULL, &KEY2Timer_attributes);
-
   /* USER CODE BEGIN RTOS_TIMERS */
   /* start timers, add new ones, ... */
-	KEY1.timerHandle = KEY1TimerHandle;
-	KEY2.timerHandle = KEY2TimerHandle;
-	
-	osTimerStart(KEY1TimerHandle, 10);
-	osTimerStart(KEY2TimerHandle, 10);
   /* USER CODE END RTOS_TIMERS */
+
+  /* Create the queue(s) */
+  /* creation of KEY_MsgQueue */
+  KEY_MsgQueueHandle = osMessageQueueNew (8, sizeof(uint8_t), &KEY_MsgQueue_attributes);
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
@@ -211,7 +204,7 @@ void PWM_Task_function(void *argument)
 	MG310_Rotation(ROTATE_FORWARD);
 	MG310_Cmd(MG310_ON);
 	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
-	MG310_SetSpeed_Percent(1000);
+	MG310_SetSpeed_Percent(500);
 	// value Init
 //	uint8_t occupy = 0;
 //	int8_t direction = 1;
@@ -239,22 +232,22 @@ void KEY_Task_Function(void *argument)
 {
   /* USER CODE BEGIN KEY_Task_Function */
   /* Infinite loop */
-
+	const TickType_t xTicksToWait = pdMS_TO_TICKS(10);
   for(;;)
   {
-		if (KEY1.pressed)
-    {
-      KEY1.pressed = 0;
-      // ����1ҵ���߼�
-      HAL_GPIO_WritePin(LED13_GPIO_Port, LED13_Pin, GPIO_PIN_SET);
-    }
-    if (KEY2.pressed)
-    {
-      KEY2.pressed = 0;
-      // ����2ҵ���߼�
-      HAL_GPIO_WritePin(LED13_GPIO_Port, LED13_Pin, GPIO_PIN_RESET);
-    }
-    osDelay(10);
+		if(xSemaphoreTake(KEY1_SemaphoreHandle, xTicksToWait) == pdTRUE){
+			osDelay(20);
+			if(HAL_GPIO_ReadPin(KEY1_GPIO_Port, KEY1_Pin) == GPIO_PIN_RESET){
+				HAL_GPIO_WritePin(LED13_GPIO_Port, LED13_Pin, GPIO_PIN_SET);
+				while(HAL_GPIO_ReadPin(KEY1_GPIO_Port, KEY1_Pin) == GPIO_PIN_RESET){osDelay(10);}
+			}
+		}else if(xSemaphoreTake(KEY2_SemaphoreHandle, xTicksToWait) == pdTRUE){
+			osDelay(20);
+			if(HAL_GPIO_ReadPin(KEY2_GPIO_Port, KEY2_Pin) == GPIO_PIN_RESET){
+				HAL_GPIO_WritePin(LED13_GPIO_Port, LED13_Pin, GPIO_PIN_RESET);
+				while(HAL_GPIO_ReadPin(KEY2_GPIO_Port, KEY2_Pin) == GPIO_PIN_RESET){osDelay(10);}
+			}
+		}
   }
   /* USER CODE END KEY_Task_Function */
 }
@@ -295,50 +288,6 @@ void OLED_Task_Function(void *argument)
     osDelay(MEASURE_DELAY);
   }
   /* USER CODE END OLED_Task_Function */
-}
-
-/* KEY1Callback function */
-void KEY1Callback(void *argument)
-{
-  /* USER CODE BEGIN KEY1Callback */
-	uint8_t cur = HAL_GPIO_ReadPin(KEY1.port, KEY1.pin);
-  if (cur == KEY1.lastState)
-  {
-    if (KEY1.stableCnt < 3) KEY1.stableCnt++;
-    if (KEY1.stableCnt == 3 && cur == GPIO_PIN_RESET)
-    {
-      KEY1.pressed = 1;
-      KEY1.stableCnt = 4;  // ��ֹ�ظ�����
-    }
-  }
-  else
-  {
-    KEY1.stableCnt = 0;
-    KEY1.lastState = cur;
-  }
-  /* USER CODE END KEY1Callback */
-}
-
-/* KEY2Callback function */
-void KEY2Callback(void *argument)
-{
-  /* USER CODE BEGIN KEY2Callback */
-	uint8_t cur = HAL_GPIO_ReadPin(KEY2.port, KEY2.pin);
-  if (cur == KEY2.lastState)
-  {
-    if (KEY2.stableCnt < 3) KEY2.stableCnt++;
-    if (KEY2.stableCnt == 3 && cur == GPIO_PIN_RESET)
-    {
-      KEY2.pressed = 1;
-      KEY2.stableCnt = 4;  // ��ֹ�ظ�����
-    }
-  }
-  else
-  {
-    KEY2.stableCnt = 0;
-    KEY2.lastState = cur;
-  }
-  /* USER CODE END KEY2Callback */
 }
 
 /* Private application code --------------------------------------------------*/

@@ -24,7 +24,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "semphr.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -158,7 +158,36 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+// 1. 声明外部信号量句柄（如果不在同一个文件里定义）
+extern osSemaphoreId_t KEY1_SemaphoreHandle;
+extern osSemaphoreId_t KEY2_SemaphoreHandle;
 
+// 2. 重写这个弱函数（注意：绝对不要加 __weak）
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+    // 定义任务唤醒标志
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+
+    // 判断是哪个引脚触发的
+    if (GPIO_Pin == KEY1_Pin) 
+    {
+        if (KEY1_SemaphoreHandle != NULL) 
+        {
+            // 发送信号量给任务
+            xSemaphoreGiveFromISR(KEY1_SemaphoreHandle, &xHigherPriorityTaskWoken);
+        }
+    }
+    else if (GPIO_Pin == KEY2_Pin) 
+    {
+        if (KEY2_SemaphoreHandle != NULL) 
+        {
+            xSemaphoreGiveFromISR(KEY2_SemaphoreHandle, &xHigherPriorityTaskWoken);
+        }
+    }
+
+    // 3. 如果发送信号量唤醒了更高优先级的任务，退出中断前切一下任务
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+}
 /* USER CODE END 4 */
 
 /**
