@@ -50,6 +50,8 @@ typedef enum{
 void MG310_Rotation(Rotate_State state);
 void MG310_Cmd(MG310_Switch state);
 void MG310_SetSpeed_Percent(uint16_t speed);
+
+void MG310_MesureCurSpeed(void);
 float MG310_GetCurSpeed(void);
 
 #endif

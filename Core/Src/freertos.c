@@ -28,6 +28,8 @@
 #include "tim.h"
 #include "OLED.h"
 #include "MG310_Driver.h"
+#include "PID.h"
+#include "PID_MG310.h"
 
 #include "semphr.h"
 
@@ -93,6 +95,18 @@ const osThreadAttr_t OLED_Task_attributes = {
   .stack_size = sizeof(OLED_TaskBuffer),
   .priority = (osPriority_t) osPriorityLow,
 };
+/* Definitions for SpeedMesure */
+osThreadId_t SpeedMesureHandle;
+uint32_t SpeedMesureBuffer[ 128 ];
+osStaticThreadDef_t SpeedMesureControlBlock;
+const osThreadAttr_t SpeedMesure_attributes = {
+  .name = "SpeedMesure",
+  .cb_mem = &SpeedMesureControlBlock,
+  .cb_size = sizeof(SpeedMesureControlBlock),
+  .stack_mem = &SpeedMesureBuffer[0],
+  .stack_size = sizeof(SpeedMesureBuffer),
+  .priority = (osPriority_t) osPriorityLow,
+};
 /* Definitions for KEY_MsgQueue */
 osMessageQueueId_t KEY_MsgQueueHandle;
 uint8_t KEY_MsgQueueBuffer[ 8 * sizeof( uint8_t ) ];
@@ -129,6 +143,7 @@ const osSemaphoreAttr_t KEY2_Semaphore_attributes = {
 void PWM_Task_function(void *argument);
 void KEY_Task_Function(void *argument);
 void OLED_Task_Function(void *argument);
+void SpeedMesure_Function(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -179,6 +194,9 @@ void MX_FREERTOS_Init(void) {
   /* creation of OLED_Task */
   OLED_TaskHandle = osThreadNew(OLED_Task_Function, NULL, &OLED_Task_attributes);
 
+  /* creation of SpeedMesure */
+  SpeedMesureHandle = osThreadNew(SpeedMesure_Function, NULL, &SpeedMesure_attributes);
+
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
@@ -201,22 +219,14 @@ void PWM_Task_function(void *argument)
   /* USER CODE BEGIN PWM_Task_function */
   /* Infinite loop */
 	// PWM_Init
+	PID_MG310_Init();
 	MG310_Rotation(ROTATE_FORWARD);
 	MG310_Cmd(MG310_ON);
-	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
-	MG310_SetSpeed_Percent(500);
-	// value Init
-//	uint8_t occupy = 0;
-//	int8_t direction = 1;
+	PID_MG310_SetSpeed(0.5f);
   for(;;)
   {
-//		occupy += direction;
-//		__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, occupy * 10);
-//		if(occupy == 100)
-//			direction = -1;
-//		else if(occupy == 0)
-//			direction = 1;
-    osDelay(10);
+		PID_MG310_Proc(HAL_GetTick());
+    osDelay(5);
   }
   /* USER CODE END PWM_Task_function */
 }
@@ -238,14 +248,19 @@ void KEY_Task_Function(void *argument)
 		if(xSemaphoreTake(KEY1_SemaphoreHandle, xTicksToWait) == pdTRUE){
 			osDelay(20);
 			if(HAL_GPIO_ReadPin(KEY1_GPIO_Port, KEY1_Pin) == GPIO_PIN_RESET){
+				// 业务代码
 				HAL_GPIO_WritePin(LED13_GPIO_Port, LED13_Pin, GPIO_PIN_SET);
 				while(HAL_GPIO_ReadPin(KEY1_GPIO_Port, KEY1_Pin) == GPIO_PIN_RESET){osDelay(10);}
+				PID_MG310_ChangeSpeed(-0.1f);
 			}
-		}else if(xSemaphoreTake(KEY2_SemaphoreHandle, xTicksToWait) == pdTRUE){
+		}
+		if(xSemaphoreTake(KEY2_SemaphoreHandle, xTicksToWait) == pdTRUE){
 			osDelay(20);
 			if(HAL_GPIO_ReadPin(KEY2_GPIO_Port, KEY2_Pin) == GPIO_PIN_RESET){
+				// 业务代码
 				HAL_GPIO_WritePin(LED13_GPIO_Port, LED13_Pin, GPIO_PIN_RESET);
 				while(HAL_GPIO_ReadPin(KEY2_GPIO_Port, KEY2_Pin) == GPIO_PIN_RESET){osDelay(10);}
+				PID_MG310_ChangeSpeed(0.1f);
 			}
 		}
   }
@@ -269,25 +284,47 @@ void OLED_Task_Function(void *argument)
 	vTaskDelay(100);
 	OLED_Init();
 	vTaskDelay(100);
-	
-	float cur_speed;
+	float cur_speed, sp_speed;
 	
 	char strings[15];
 	
 	OLED_Clear();
 	
-	OLED_ShowChineseChars(0, 0, "速度");
+	OLED_ShowChineseChars(0, 0, "速度：");
+	OLED_ShowChineseChars(0, 2, "目标：");
 	
 	OLED_Ciallo();
 
 	for(;;)
   {
 		cur_speed = MG310_GetCurSpeed();
-		sprintf(strings, "%05.2fkm/h", cur_speed);
+		sp_speed = PID_MG310_GetSP();
+		sprintf(strings, "%05.2fm/s", cur_speed);
 		OLED_ShowString(24*2, 0, strings, 8);
+		sprintf(strings, "%05.2fm/s", sp_speed);
+		OLED_ShowString(24*2, 2, strings, 8);
     osDelay(MEASURE_DELAY);
   }
   /* USER CODE END OLED_Task_Function */
+}
+
+/* USER CODE BEGIN Header_SpeedMesure_Function */
+/**
+* @brief Function implementing the SpeedMesure thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_SpeedMesure_Function */
+void SpeedMesure_Function(void *argument)
+{
+  /* USER CODE BEGIN SpeedMesure_Function */
+  /* Infinite loop */
+  for(;;)
+  {
+		MG310_MesureCurSpeed();
+    osDelay(MEASURE_DELAY);
+  }
+  /* USER CODE END SpeedMesure_Function */
 }
 
 /* Private application code --------------------------------------------------*/

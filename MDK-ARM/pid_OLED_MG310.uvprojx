@@ -599,6 +599,26 @@
               <FileType>5</FileType>
               <FilePath>..\Hardware\OLED_Fonts.h</FilePath>
             </File>
+            <File>
+              <FileName>PID.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Hardware\PID.c</FilePath>
+            </File>
+            <File>
+              <FileName>PID.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Hardware\PID.h</FilePath>
+            </File>
+            <File>
+              <FileName>PID_MG310.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Hardware\PID_MG310.c</FilePath>
+            </File>
+            <File>
+              <FileName>PID_MG310.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Hardware\PID_MG310.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

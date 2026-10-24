@@ -3,6 +3,9 @@
 #include "MG310_Driver.h"
 
 #include "tim.h"
+//#include "task.h"
+
+float MG310_CurSpeed = 0.0f;
 
 void MG310_Rotation(Rotate_State state){
 	if(state == ROTATE_FORWARD){
@@ -31,16 +34,25 @@ void MG310_SetSpeed_Percent(uint16_t speed){
 	__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, speed);
 }
 
-float MG310_GetCurSpeed(void)
-{
-    uint16_t count;
-    
+void MG310_MesureCurSpeed(void){
+	uint16_t count;
+
     // 临界区保护读-清零的原子性
 //    taskENTER_CRITICAL();
-    count = __HAL_TIM_GET_COUNTER(&htim3);
-    __HAL_TIM_SET_COUNTER(&htim3, 0);
+	
+	count = __HAL_TIM_GET_COUNTER(&htim3);
+	__HAL_TIM_SET_COUNTER(&htim3, 0);
+	
 //    taskEXIT_CRITICAL();
-    
-    // 速度 = 计数 × 每计数距离 / 采样周期
-    return (float)count * DIST_PER_COUNT / SAMPLE_PERIOD_S;
+	
+	// 速度 = 计数 × 每计数距离 / 采样周期
+	MG310_CurSpeed = (float)count * DIST_PER_COUNT / SAMPLE_PERIOD_S;
+	
+	return;
+}
+
+float MG310_GetCurSpeed(void)
+{   
+	// 直接返回全局
+    return MG310_CurSpeed;
 }
