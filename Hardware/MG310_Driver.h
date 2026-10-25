@@ -47,11 +47,11 @@ typedef enum{
 	MG310_OFF
 }	MG310_Switch;
 
-void MG310_Rotation(Rotate_State state);
-void MG310_Cmd(MG310_Switch state);
-void MG310_SetSpeed_Percent(uint16_t speed);
+void MG310_Rotation(Rotate_State state);			// 设定方向
+void MG310_Cmd(MG310_Switch state);					// 设定开关控制
+void MG310_SetSpeed_Percent(uint16_t speed);		// 以设定输出比较值设定输出速度占空比
 
-void MG310_MesureCurSpeed(void);
-float MG310_GetCurSpeed(void);
+void MG310_MesureCurSpeed(void);     //测量当前速度
+float MG310_GetCurSpeed(void);		// 输出当前速度
 
 #endif

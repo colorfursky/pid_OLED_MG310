@@ -15,7 +15,7 @@ void OLED_ShowString(uint8_t X, uint8_t Page, char *String, uint8_t FontSize);
 void OLED_ShowImage(uint8_t X, uint8_t Page, uint8_t Width, uint8_t Height, const uint8_t *Image);
 void OLED_ShowChineseChars(uint8_t X, uint8_t Page, char *Chinese_String);
 
-//void OLED_LOGO(void);
+void OLED_LOGO(void);
 void OLED_Ciallo(void);
 
 #endif

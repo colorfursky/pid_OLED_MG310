@@ -321,7 +321,9 @@ void SpeedMesure_Function(void *argument)
   /* Infinite loop */
   for(;;)
   {
+		taskENTER_CRITICAL();
 		MG310_MesureCurSpeed();
+		taskEXIT_CRITICAL();
     osDelay(MEASURE_DELAY);
   }
   /* USER CODE END SpeedMesure_Function */

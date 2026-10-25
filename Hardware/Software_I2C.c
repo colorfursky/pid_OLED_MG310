@@ -4,14 +4,14 @@
 
 #define DELAY 0
 
-// ³õÊ¼»¯ DWT
+// åˆå§‹åŒ– DWT
 void dwt_init(void) {
     CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
     DWT->CYCCNT = 0;
     DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
 }
 
-// Î¢Ãë¼¶Ã¦µÈ
+// å¾®ç§’çº§å¿™ç­‰
 void delay_us(uint32_t us) {
     uint32_t start = DWT->CYCCNT;
     uint32_t ticks = us * (SystemCoreClock / 1000000);
@@ -39,13 +39,13 @@ void W_SDA(uint8_t BitValue){
 void Software_I2C_SendByte(uint8_t Byte){
 	uint8_t i;
 	for(i = 0; i < 8; i++){
-		if((Byte & 0x80) != 0)   // È¡×î¸ßÎ»
+		if((Byte & 0x80) != 0)   // å–æœ€é«˜ä½
 			W_SDA(1);
 		else
 			W_SDA(0);
 			W_SCL(1);
 			W_SCL(0);
-			Byte <<= 1;              // ×óÒÆ
+			Byte <<= 1;              // å·¦ç§»
 	}
 }
 
