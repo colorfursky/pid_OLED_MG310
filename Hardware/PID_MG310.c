@@ -20,7 +20,7 @@ static PID_TypeDef pid_motor;
 * @retval None
 */
 void PID_MG310_Init(void){
-	PID_Init(&pid_motor, PID_P, PID_I, PID_D);
+	PID_Init(&pid_motor, PID_P, PID_I, PID_D);		// 设置pid参数
 }
 
 /**
@@ -29,16 +29,16 @@ void PID_MG310_Init(void){
 * @retval None
 */
 void PID_MG310_Proc(TickType_t cur_tick){
-	float speed = MG310_GetCurSpeed();
+	float speed = MG310_GetCurSpeed();			// 获取当前速度
 	
-	float co= PID_Compute(&pid_motor, speed, cur_tick);
+	float co= PID_Compute(&pid_motor, speed, cur_tick);		// 计算获取当前电机输出占空比
 	
-	int32_t pwm_value = (uint32_t) co;
-	if(pwm_value >= 1000)
+	int32_t pwm_value = (uint32_t) co;		// 强转为整型
+	if(pwm_value >= 1000)		// 提高程序的健壮性
 		pwm_value = 1000;
 	if(pwm_value < 0)
 		pwm_value = 0;
-	MG310_SetSpeed_Percent((uint16_t) pwm_value);
+	MG310_SetSpeed_Percent((uint16_t) pwm_value);		// 设置输出比较
 }
 
 /**
@@ -47,7 +47,7 @@ void PID_MG310_Proc(TickType_t cur_tick){
 * @retval None
 */
 void PID_MG310_SetSpeed(float speed_m){
-	PID_ChangeSP(&pid_motor, speed_m);
+	PID_ChangeSP(&pid_motor, speed_m);		// 设置目标值
 }
 
 /**
@@ -56,12 +56,12 @@ void PID_MG310_SetSpeed(float speed_m){
 * @retval None
 */
 void PID_MG310_ChangeSpeed(float speed_change){
-	float MG310_SpeedSetting = pid_motor.SP + speed_change;
-	if(MG310_SpeedSetting < 0)
+	float MG310_SpeedSetting = pid_motor.SP + speed_change;			// 计算调整速度目标
+	if(MG310_SpeedSetting < 0)		// 提高程序的健壮性
 		MG310_SpeedSetting = 0.0f;
-	else if(MG310_SpeedSetting >= SPEED_LIMIT)
+	else if(MG310_SpeedSetting >= SPEED_LIMIT)	// 速度上限
 		MG310_SpeedSetting = SPEED_LIMIT;
-	PID_ChangeSP(&pid_motor, MG310_SpeedSetting);
+	PID_ChangeSP(&pid_motor, MG310_SpeedSetting);			// 设定目标值
 }
 
 /**
@@ -70,5 +70,5 @@ void PID_MG310_ChangeSpeed(float speed_change){
 * @retval None
 */
 float PID_MG310_GetSP(void){
-	return PID_GetSP(&pid_motor);
+	return PID_GetSP(&pid_motor);			// 驱动函数
 }

@@ -219,13 +219,13 @@ void PWM_Task_function(void *argument)
   /* USER CODE BEGIN PWM_Task_function */
   /* Infinite loop */
 	// PWM_Init
-	PID_MG310_Init();
-	MG310_Rotation(ROTATE_FORWARD);
-	MG310_Cmd(MG310_ON);
-	PID_MG310_SetSpeed(0.5f);
+	PID_MG310_Init();		// 初始化电机
+	MG310_Rotation(ROTATE_FORWARD);		// 设置电机为正转
+	MG310_Cmd(MG310_ON);		// 打开电机
+	PID_MG310_SetSpeed(0.5f);		//	设定目标值
   for(;;)
   {
-		PID_MG310_Proc(HAL_GetTick());
+		PID_MG310_Proc(HAL_GetTick());		// 更新电机pid
     osDelay(5);
   }
   /* USER CODE END PWM_Task_function */
@@ -278,32 +278,33 @@ void OLED_Task_Function(void *argument)
 {
   /* USER CODE BEGIN OLED_Task_Function */
   /* Infinite loop */
+	// OLED屏需要初始化操作，以防万一选择用软件模拟i2c通信
 	vTaskDelay(20);
-	HAL_GPIO_WritePin(OLED_Pin_GPIO_Port, OLED_Pin_Pin, GPIO_PIN_SET);
-	HAL_GPIO_WritePin(RES_GPIO_Port, RES_Pin, GPIO_PIN_SET);
+	HAL_GPIO_WritePin(OLED_Pin_GPIO_Port, OLED_Pin_Pin, GPIO_PIN_SET);		// 启动OLED屏幕
+	HAL_GPIO_WritePin(RES_GPIO_Port, RES_Pin, GPIO_PIN_SET);		// 关闭复位
 	vTaskDelay(100);
-	OLED_Init();
+	OLED_Init();		// 初始化OLED
 	vTaskDelay(100);
-	float cur_speed, sp_speed;
+	float cur_speed, sp_speed;		// 定义当前速度和目标速度
 	
-	char strings[15];
+	char strings[15];		// 定义输出字符串
 	
-	OLED_Clear();
+	OLED_Clear();		// 清屏
 	
 	OLED_ShowChineseChars(0, 0, "速度：");
 	OLED_ShowChineseChars(0, 2, "目标：");
 	
-	OLED_Ciallo();
+	OLED_Ciallo();		// 装饰用函数，可以删除
 
 	for(;;)
   {
-		cur_speed = MG310_GetCurSpeed();
-		sp_speed = PID_MG310_GetSP();
-		sprintf(strings, "%05.2fm/s", cur_speed);
-		OLED_ShowString(24*2, 0, strings, 8);
-		sprintf(strings, "%05.2fm/s", sp_speed);
-		OLED_ShowString(24*2, 2, strings, 8);
-    osDelay(MEASURE_DELAY);
+		cur_speed = MG310_GetCurSpeed();		// 读取当前速度
+		sp_speed = PID_MG310_GetSP();			// 读取当前速度目标
+		sprintf(strings, "%05.2fm/s", cur_speed);		// 计算输出字符串
+		OLED_ShowString(24*2, 0, strings, 8);		// 输出当前速度的字符串于OLED屏
+		sprintf(strings, "%05.2fm/s", sp_speed);		// 计算输出目标速度
+		OLED_ShowString(24*2, 2, strings, 8);		// 输出目标速度的字符串于OLED屏
+    osDelay(MEASURE_DELAY);		// 测速延迟
   }
   /* USER CODE END OLED_Task_Function */
 }
